@@ -1,7 +1,7 @@
 module.exports = function (RED) {
-  function ChartDataQueryNode(config) {
+  function HistoryQueryNode(config) {
     RED.nodes.createNode(this, config);
-    this.chartConfig = RED.nodes.getNode(config.chartConfig);
+    this.historyConfig = RED.nodes.getNode(config.historyConfig);
     this.bucket = config.bucket || "Undefined"; // Fallback for older flows
     const node = this;
 
@@ -10,22 +10,22 @@ module.exports = function (RED) {
         // Log input message safely
         node.log(`Input msg.bucket: ${msg.bucket}, msg.series: ${msg.series}`);
 
-        // Use msg.bucket, chartConfig.name, or fallback to config.bucket
-        let bucket = msg.bucket || (node.chartConfig && node.chartConfig.name) || node.bucket;
+        // Use msg.bucket, historyConfig.name, or fallback to config.bucket
+        let bucket = msg.bucket || (node.historyConfig && node.historyConfig.name) || node.bucket;
         if (!bucket || bucket === "Undefined") {
-          node.error(`No valid bucket specified. msg.bucket: ${msg.bucket}, chartConfig.name: ${node.chartConfig && node.chartConfig.name}, config.bucket: ${node.bucket}`, msg);
+          node.error(`No valid bucket specified. msg.bucket: ${msg.bucket}, historyConfig.name: ${node.historyConfig && node.historyConfig.name}, config.bucket: ${node.bucket}`, msg);
           return;
         }
         node.log(`Using bucket: ${bucket}`);
 
-        // Retrieve chart data from flow context
+        // Retrieve history data from flow context
         const flowContext = node.context().flow;
         if (!flowContext) {
           node.error("Flow context is not available", msg);
           return;
         }
-        let chartData = flowContext.get(`chart_data_${bucket}`) || [];
-        node.log(`Raw chart data (${chartData.length} items): ${JSON.stringify(chartData.slice(0, 5), null, 2)}`);
+        let historyData = flowContext.get(`history_data_${bucket}`) || [];
+        node.log(`Raw History data (${historyData.length} items): ${JSON.stringify(historyData.slice(0, 5), null, 2)}`);
 
         // Extract series (priority: msg.series only)
         let series = [];
@@ -39,9 +39,9 @@ module.exports = function (RED) {
         }
 
         // Parse line protocol strings only if msg.series is set
-        let outputData = chartData;
+        let outputData = historyData;
         if (series.length > 0) {
-          outputData = chartData.map(line => {
+          outputData = historyData.map(line => {
             try {
               // Example: sensor_data,seriesName=Return\ Temp value=75.20 1748989364782000000
               const parts = line.split(' ');
@@ -103,5 +103,5 @@ module.exports = function (RED) {
       }
     });
   }
-  RED.nodes.registerType("chart-data-query", ChartDataQueryNode);
+  RED.nodes.registerType("history-query", HistoryQueryNode);
 };

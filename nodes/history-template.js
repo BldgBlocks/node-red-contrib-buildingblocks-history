@@ -1,24 +1,24 @@
 module.exports = function(RED) {
     function HistoryTemplateNode(config) {
         RED.nodes.createNode(this, config);
-        this.chartConfig = RED.nodes.getNode(config.chartConfig);
+        this.historyConfig = RED.nodes.getNode(config.historyConfig);
         this.name = config.name;
         const node = this;
 
         node.on('input', function(msg) {
-            if (!node.chartConfig) {
-                node.error("No chart configuration defined", msg);
+            if (!node.historyConfig) {
+                node.error("No history configuration defined", msg);
                 return;
             }
-            const bucket = node.chartConfig.name;
+            const bucket = node.historyConfig.name;
             if (!bucket) {
-                node.error("No bucket defined in chart configuration", msg);
+                node.error("No bucket defined in history configuration", msg);
                 return;
             }
 
             // Parse line protocol from msg.payload
             const lines = Array.isArray(msg.payload) ? msg.payload : [];
-            const chartData = {};
+            const historyData = {};
 
             for (let line of lines) {
                 try {
@@ -56,11 +56,11 @@ module.exports = function(RED) {
                         continue;
                     }
 
-                    if (!chartData[seriesName]) {
-                        chartData[seriesName] = [];
+                    if (!historyData[seriesName]) {
+                        historyData[seriesName] = [];
                     }
 
-                    chartData[seriesName].push({
+                    historyData[seriesName].push({
                         timestamp: parseInt(timestamp) / 1e6, // ns to ms
                         value: values.value
                     });
@@ -84,10 +84,10 @@ module.exports = function(RED) {
                 } : null;
             };
 
-            for (let seriesName in chartData) {
-                let seriesData = chartData[seriesName] || [];
+            for (let seriesName in historyData) {
+                let seriesData = historyData[seriesName] || [];
 
-                const seriesConfig = node.chartConfig.series.find(s => s.seriesName === seriesName) || {};
+                const seriesConfig = node.historyConfig.series.find(s => s.seriesName === seriesName) || {};
                 const baseColor = seriesConfig.seriesColor || '#be1313';
                 let gradientColors;
 

@@ -1,11 +1,11 @@
-<script type="text/html" data-template-name="chart-data-receiver">
+<script type="text/html" data-template-name="history-receiver">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name">
     </div>
     <div class="form-row">
-        <label for="node-input-chartConfig"><i class="fa fa-book"></i> Chart Config</label>
-        <input type="text" id="node-input-chartConfig" style="width:70%;">
+        <label for="node-input-historyConfig"><i class="fa fa-book"></i> History Config</label>
+        <input type="text" id="node-input-historyConfig" style="width:70%;">
     </div>
     <div class="form-row">
         <label for="node-input-seriesName"><i class="fa fa-list"></i> Series</label>
@@ -15,18 +15,18 @@
         <label for="node-input-storageType"><i class="fa fa-database"></i> Storage Type</label>
         <select id="node-input-storageType">
             <option value="memory">Memory (Flow Context)</option>
-            <option value="passthrough">Passthrough</option>
-            <option value="custom">Custom</option>
+            <option value="lineProtocol">Line Protocol</option>
+            <option value="object">Object</option>
         </select>
     </div>
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('chart-data-receiver', {
+    RED.nodes.registerType('history-receiver', {
         category: 'bldgblocks/history',
         color: '#a6bbcf',
         defaults: {
-            chartConfig: { value: "", type: "chart-config", required: true },
+            historyConfig: { value: "", type: "history-config", required: true },
             seriesName: { value: "" },
             storageType: { value: "memory" },
             name: { value: "" }
@@ -35,7 +35,7 @@
         outputs: 1,
         icon: "file.png",
         label: function() {
-            return this.name || this.seriesName || "chart-data-receiver";
+            return this.name || this.seriesName || "history-receiver";
         },
         oneditprepare: function() {
             const node = this;
@@ -65,12 +65,12 @@
                 }
             }
 
-            $("#node-input-chartConfig").on("change", function() {
+            $("#node-input-historyConfig").on("change", function() {
                 updateSeriesOptions($(this).val());
             });
 
-            if (node.chartConfig) {
-                updateSeriesOptions(node.chartConfig);
+            if (node.historyConfig) {
+                updateSeriesOptions(node.historyConfig);
             }
 
             storageType.val(node.storageType || 'memory');

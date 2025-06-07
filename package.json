@@ -6,10 +6,10 @@
   "files": ["nodes/*.js", "nodes/*.html"],
   "node-red": {
       "nodes": {        
-        "chart-config": "nodes/chart-config.js",
-        "chart-data-receiver": "nodes/chart-data-receiver.js",
+        "chart-config": "nodes/history-config.js",
+        "chart-data-receiver": "nodes/history-receiver.js",
         "history-template": "nodes/history-template.js",
-        "chart-data-query": "nodes/chart-data-query.js"
+        "chart-data-query": "nodes/history-query.js"
       }
   },
   "author": "buildingblocks",

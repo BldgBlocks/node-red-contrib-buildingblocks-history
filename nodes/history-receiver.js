@@ -1,28 +1,28 @@
 module.exports = function(RED) {
-    function ChartDataReceiverNode(config) {
+    // Define node for receiving and formatting time-series data
+    function HistoryReceiverNode(config) {
         RED.nodes.createNode(this, config);
-        this.chartConfig = RED.nodes.getNode(config.chartConfig);
+        this.historyConfig = RED.nodes.getNode(config.historyConfig);
         this.seriesName = config.seriesName;
         this.storageType = config.storageType || 'memory';
         const node = this;
 
         node.on('input', function(msg) {
-
             // Validate configuration
-            if (!node.chartConfig) {
-                node.error("Missing chart configuration", msg);
+            if (!node.historyConfig) {
+                node.error("Missing history configuration", msg);
                 return;
             }
             if (!node.seriesName) {
                 node.error("Missing series name", msg);
                 return;
             }
-            if (!node.chartConfig.name) {
-                node.error("Missing bucket name in chart configuration", msg);
+            if (!node.historyConfig.name) {
+                node.error("Missing bucket name in history configuration", msg);
                 return;
             }
 
-            // Validate and process payload
+            // Validate and parse payload as a number
             let payloadValue;
             try {
                 payloadValue = parseFloat(msg.payload);
@@ -35,23 +35,20 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Construct line protocol
-            const bucket = node.chartConfig.name;
+            // Construct line protocol with escaped measurement name
+            const escapedMeasurementName = node.seriesName.replace(/[, =]/g, '\\$&');
             const formattedValue = payloadValue.toFixed(2);
-            const msNow = new Date().getTime();
+            const msNow = Date.now();
             const timestamp = msNow * 1e6;
-
-            // Escape commas, spaces, and equals signs in seriesName
-            const escapedSeriesName = node.seriesName.replace(/[, =]/g, '\\$&');
-            const line = `sensor_data,seriesName=${escapedSeriesName} value=${formattedValue} ${timestamp}`;
+            const line = `${escapedMeasurementName} value=${formattedValue} ${timestamp}`;
 
             // Handle storage type
             if (node.storageType === 'memory') {
-                const contextKey = `chart_data_${bucket}`;
+                const contextKey = `history_data_${node.historyConfig.name}`;
                 let bucketData = node.context().flow.get(contextKey) || [];
                 bucketData.push(line);
 
-                const maxMemoryBytes = (node.chartConfig.maxMemoryMb || 10) * 1024 * 1024;
+                const maxMemoryBytes = (node.historyConfig.maxMemoryMb || 10) * 1024 * 1024;
                 let totalSize = Buffer.byteLength(JSON.stringify(bucketData), 'utf8');
                 while (totalSize > maxMemoryBytes && bucketData.length > 0) {
                     bucketData.shift();
@@ -59,15 +56,15 @@ module.exports = function(RED) {
                 }
 
                 node.context().flow.set(contextKey, bucketData);
-            } else if (node.storageType === 'passthrough') {
-                msg.payload = line;
-                msg.bucket = bucket;
+            } else if (node.storageType === 'lineProtocol') {
+                msg.payload = [line];
+                msg.table = escapedMeasurementName;
                 node.send(msg);
-            } else if (node.storageType === 'custom') {
-                msg.payload = { bucket, seriesName: node.seriesName, line };
+            } else if (node.storageType === 'object') {
+                msg.payload = { table: escapedMeasurementName, line };
                 node.send(msg);
             }
         });
     }
-    RED.nodes.registerType("chart-data-receiver", ChartDataReceiverNode);
+    RED.nodes.registerType("history-receiver", HistoryReceiverNode);
 };

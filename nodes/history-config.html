@@ -1,7 +1,7 @@
-<script type="text/html" data-template-name="chart-config">
+<script type="text/html" data-template-name="history-config">
     <div class="form-row">
         <label for="node-config-input-name"><i class="fa fa-tag"></i> Name</label>
-        <input type="text" id="node-config-input-name" placeholder="Chart Config">
+        <input type="text" id="node-config-input-name" placeholder="History Config">
     </div>
     <div class="form-row">
         <label for="node-config-input-maxMemoryMb"><i class="fa fa-memory"></i> Max Memory (MB)</label>
@@ -33,7 +33,7 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('chart-config', {
+    RED.nodes.registerType('history-config', {
         category: 'config',
         defaults: {
             series: { value: [], required: true },
@@ -41,9 +41,9 @@
             maxMemoryMb: { value: 10, required: true, validate: RED.validators.number() }
         },
         label: function() {
-            return this.name || "Chart Config";
+            return this.name || "History Config";
         },
-        paletteLabel: "Chart Config",
+        paletteLabel: "History Config",
         oneditprepare: function() {
             const node = this;
             const tableBody = $("#node-config-series-table tbody");
@@ -103,7 +103,7 @@
             $("#node-config-clear-history").on("click", function() {
                 const bucketName = $("#node-config-bucket-name").text();
                 if (confirm(`Are you sure you want to clear all history data for bucket "${bucketName}"? This cannot be undone.`)) {
-                    RED.comms.rpc('chart-config-clear-history', [node.id], function(response) {
+                    RED.comms.rpc('history-config-clear-history', [node.id], function(response) {
                         if (response && response.error) {
                             RED.notify(`Failed to clear history: ${response.error}`, "error");
                         } else {
@@ -155,9 +155,9 @@
     });
 
     // Register an RPC method for clearing history
-    RED.httpAdmin.post('/chart-config-clear-history/:id', RED.auth.needsPermission('chart-config.write'), function(req, res) {
+    RED.httpAdmin.post('/history-config-clear-history/:id', RED.auth.needsPermission('history-config.write'), function(req, res) {
         const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === 'chart-config') {
+        if (node && node.type === 'history-config') {
             node.emit('clearHistory', function() {
                 res.json({ message: "History cleared" });
             });
