@@ -35,12 +35,13 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Construct line protocol with escaped measurement name
+            // Construct line protocol with escaped measurement name and seriesName tag
             const escapedMeasurementName = node.seriesName.replace(/[, =]/g, '\\$&');
+            const escapedSeriesName = node.seriesName.replace(/[, =]/g, '\\$&');
             const formattedValue = payloadValue.toFixed(2);
             const msNow = Date.now();
             const timestamp = msNow * 1e6;
-            const line = `${escapedMeasurementName} value=${formattedValue} ${timestamp}`;
+            const line = `${escapedMeasurementName},seriesName=${escapedSeriesName} value=${formattedValue} ${timestamp}`;
 
             // Handle storage type
             if (node.storageType === 'memory') {
@@ -57,11 +58,16 @@ module.exports = function(RED) {
 
                 node.context().flow.set(contextKey, bucketData);
             } else if (node.storageType === 'lineProtocol') {
-                msg.payload = [line];
+                msg.payload = line;
                 msg.table = escapedMeasurementName;
                 node.send(msg);
             } else if (node.storageType === 'object') {
-                msg.payload = { table: escapedMeasurementName, line };
+                msg.payload = {
+                    table: escapedMeasurementName,
+                    tags: [`seriesName=${node.seriesName}`],
+                    value: parseFloat(formattedValue),
+                    timestamp: timestamp
+                };
                 node.send(msg);
             }
         });

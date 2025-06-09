@@ -16,56 +16,77 @@ module.exports = function(RED) {
                 return;
             }
 
-            // Parse line protocol from msg.payload
-            const lines = Array.isArray(msg.payload) ? msg.payload : [];
+            // Parse input data (line protocol or JSON objects)
             const historyData = {};
+            const lines = Array.isArray(msg.payload) ? msg.payload : [];
 
-            for (let line of lines) {
+            for (let item of lines) {
                 try {
-                    // Split line into measurement+tags, fields, and timestamp
-                    const match = line.match(/^(.+?) (value=[0-9.]+) ([0-9]+)$/);
-                    if (!match) {
-                        node.warn(`Failed to parse line: ${line}`);
+                    let seriesName, value, timestamp;
+                    if (typeof item === 'string') {
+                        // Parse line protocol
+                        const match = item.match(/^(.+?) (value=[0-9.]+) ([0-9]+)$/);
+                        if (!match) {
+                            node.log(`Skipped invalid line: ${item}`);
+                            continue;
+                        }
+                        const [_, measurementTags, fields, ts] = match;
+
+                        const tagPairs = measurementTags.split(/(?<!\\),/);
+                        const tags = {};
+                        tagPairs.forEach(pair => {
+                            const [key, val] = pair.split(/(?<!\\)=/);
+                            if (key && val) {
+                                tags[key] = val.replace(/\\ /g, ' ').replace(/\\,/g, ',').replace(/\\=/g, '=');
+                            }
+                        });
+
+                        const fieldPairs = fields.split(/(?<!\\),/);
+                        const values = {};
+                        fieldPairs.forEach(pair => {
+                            const [key, val] = pair.split(/(?<!\\)=/);
+                            if (key && val) {
+                                values[key] = parseFloat(val);
+                            }
+                        });
+
+                        seriesName = tags.seriesName || tagPairs[0];
+                        value = values.value;
+                        timestamp = parseInt(ts) / 1e6; // ns to ms
+                    } else if (typeof item === 'object' && item !== null) {
+                        // Parse JSON object
+                        seriesName = item.seriesName || item._measurement || item.measurement;
+                        value = item.value !== undefined ? item.value :
+                                item._value !== undefined ? parseFloat(item._value) :
+                                item.Value !== undefined ? parseFloat(item.Value) : undefined;
+                        // Handle timestamp
+                        const time = item.time || item._time || item.Time;
+                        if (!time) {
+                            node.log(`Skipped object missing time: ${JSON.stringify(item)}`);
+                            continue;
+                        }
+                        timestamp = typeof time === 'string' ? new Date(time + (time.includes('Z') ? '' : 'Z')).getTime() :
+                                    typeof time === 'number' ? time / 1e6 :
+                                    parseInt(time) / 1e6;
+                    } else {
+                        node.log(`Skipped invalid item: ${JSON.stringify(item)}`);
                         continue;
                     }
-                    const [_, measurementTags, fields, timestamp] = match;
 
-                    // Split measurement and tags
-                    const [measurement, ...tagPairs] = measurementTags.split(',');
-                    const tags = {};
-                    tagPairs.forEach(pair => {
-                        const [key, value] = pair.split('=');
-                        if (key && value) {
-                            tags[key] = value.replace(/\\ /g, ' '); // Unescape spaces
-                        }
-                    });
-
-                    // Parse fields
-                    const fieldPairs = fields.split(',');
-                    const values = {};
-                    fieldPairs.forEach(pair => {
-                        const [key, value] = pair.split('=');
-                        if (key && value) {
-                            values[key] = parseFloat(value);
-                        }
-                    });
-
-                    const seriesName = tags.seriesName;
-                    if (!seriesName) {
-                        node.warn(`Skipping line with no seriesName: ${line}`);
+                    if (!seriesName || typeof seriesName !== 'string' || value === undefined || isNaN(value) || isNaN(timestamp)) {
+                        node.log(`Skipped invalid data: seriesName=${seriesName}, value=${value}, timestamp=${timestamp}`);
                         continue;
                     }
 
                     if (!historyData[seriesName]) {
                         historyData[seriesName] = [];
                     }
-
                     historyData[seriesName].push({
-                        timestamp: parseInt(timestamp) / 1e6, // ns to ms
-                        value: values.value
+                        timestamp,
+                        value
                     });
                 } catch (e) {
-                    node.warn(`Failed to parse line: ${line}, error: ${e.message}`);
+                    node.log(`Failed to parse item: ${JSON.stringify(item)}, error: ${e.message}`);
                 }
             }
 
@@ -91,7 +112,6 @@ module.exports = function(RED) {
                 const baseColor = seriesConfig.seriesColor || '#be1313';
                 let gradientColors;
 
-                // Convert baseColor to rgba for gradient
                 if (baseColor.startsWith('#')) {
                     const rgb = hexToRgb(baseColor);
                     if (rgb) {
@@ -130,7 +150,7 @@ module.exports = function(RED) {
                     label: seriesName,
                     units: seriesConfig.seriesUnits || '',
                     color: baseColor,
-                    gradientColors: gradientColors // Store gradient colors
+                    gradientColors
                 });
                 let values = [];
 
@@ -158,8 +178,7 @@ module.exports = function(RED) {
 
             const chartDataForECharts = { series, data };
 
-            // Get timeSpan for dropdown selection
-            const timeSpan = msg.timeSpan ? parseInt(msg.timeSpan) : 604800; // Default to 7 days
+            const timeSpan = msg.timeSpan ? parseInt(msg.timeSpan) : 604800;
 
             const html = `
 <!DOCTYPE html>
@@ -203,7 +222,7 @@ module.exports = function(RED) {
     console.error('Invalid data format:', data);
     document.getElementById('main').innerHTML = '<h1>No Data Available</h1><p>Please check the data source.</p>';
   } else {
-    const timestamps = data.data[0]; // Timestamps in ms (UTC)
+    const timestamps = data.data[0];
     const legendData = data.series.slice(1).map(s => s.label);
     const seriesData = data.data.slice(1).map((values, i) => ({
       name: data.series[i + 1].label,
@@ -240,7 +259,7 @@ module.exports = function(RED) {
 
     const chart = echarts.init(document.getElementById('main'), null, { renderer: 'svg' });
     chart.setOption({
-      animation: false, // Disable animations to prevent flickering
+      animation: false,
       title: { text: '${bucket}', left: 'center' },
       tooltip: {
         trigger: 'axis',
