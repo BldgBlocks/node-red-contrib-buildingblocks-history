@@ -1,52 +1,109 @@
 module.exports = function(RED) {
-    // Define node for receiving and formatting time-series data
     function HistoryReceiverNode(config) {
         RED.nodes.createNode(this, config);
         this.historyConfig = RED.nodes.getNode(config.historyConfig);
         this.seriesName = config.seriesName;
         this.storageType = config.storageType || 'memory';
+        this.tags = config.tags || '';
         const node = this;
 
+        // Status update helper
+        function setNodeStatus(status, message, payloadChanged = true) {
+            let fill, shape;
+            switch (status) {
+                case 'green': fill = 'green'; shape = 'dot'; break;
+                case 'blue': fill = 'blue'; shape = payloadChanged ? 'dot' : 'ring'; break;
+                case 'red': fill = 'red'; shape = 'ring'; break;
+                case 'yellow': fill = 'yellow'; shape = 'ring'; break;
+                default: fill = 'grey'; shape = 'dot';
+            }
+            node.status({ fill, shape, text: message });
+        }
+
+        // Parse tags into key-value object
+        function parseTags(tagsString) {
+            if (!tagsString) return {};
+            const tags = {};
+            const pairs = tagsString.split(',').map(t => t.trim());
+            tags["historyGroup"] = node.historyConfig.name;
+            pairs.forEach((pair, index) => {
+                if (pair.includes('=') || pair.includes(':')) {
+                    const [key, value] = pair.includes('=') ? pair.split('=') : pair.split(':');
+                    if (key && value) tags[key.trim()] = value.trim();
+                } else {
+                    tags[`tag${index}`] = pair;
+                }
+            });
+            return tags;
+        }
+
         node.on('input', function(msg) {
+            // Guard against invalid message
+            if (!msg) {
+                setNodeStatus('red', 'invalid message', false);
+                node.error('Invalid message received');
+                return;
+            }
+
             // Validate configuration
             if (!node.historyConfig) {
-                node.error("Missing history configuration", msg);
+                setNodeStatus('red', 'missing history config', false);
+                node.error('Missing history configuration', msg);
                 return;
             }
             if (!node.seriesName) {
-                node.error("Missing series name", msg);
+                setNodeStatus('red', 'missing series name', false);
+                node.error('Missing series name', msg);
                 return;
             }
             if (!node.historyConfig.name) {
-                node.error("Missing bucket name in history configuration", msg);
+                setNodeStatus('red', 'missing bucket name', false);
+                node.error('Missing bucket name in history configuration', msg);
                 return;
             }
 
-            // Validate and parse payload as a number
-            let payloadValue;
-            try {
-                payloadValue = parseFloat(msg.payload);
-                if (isNaN(payloadValue)) {
-                    node.warn(`Invalid payload value: ${msg.payload}`);
-                    return;
+            // Validate payload
+            let payloadValue = msg.payload;
+            let formattedValue;
+            if (typeof payloadValue === 'number') {
+                formattedValue = isNaN(payloadValue) ? null : payloadValue;
+            } else if (typeof payloadValue === 'boolean') {
+                formattedValue = payloadValue;
+            } else if (typeof payloadValue === 'string') {
+                formattedValue = payloadValue;
+                if (payloadValue.endsWith('i') && !isNaN(parseInt(payloadValue))) {
+                    formattedValue = parseInt(payloadValue); // Handle InfluxDB integer format
                 }
-            } catch (e) {
-                node.warn(`Payload parsing error: ${e.message}`);
+            } else {
+                setNodeStatus('red', 'invalid payload', false);
+                node.warn(`Invalid payload type: ${typeof payloadValue}`);
                 return;
             }
 
-            // Construct line protocol with escaped measurement name and seriesName tag
+            if (formattedValue === null) {
+                setNodeStatus('red', 'invalid payload', false);
+                node.warn(`Invalid payload value: ${msg.payload}`);
+                return;
+            }
+
+            // Construct line protocol
             const escapedMeasurementName = node.seriesName.replace(/[, =]/g, '\\$&');
-            const escapedSeriesName = node.seriesName.replace(/[, =]/g, '\\$&');
-            const formattedValue = payloadValue.toFixed(2);
             const msNow = Date.now();
             const timestamp = msNow * 1e6;
-            const line = `${escapedMeasurementName},seriesName=${escapedSeriesName} value=${formattedValue} ${timestamp}`;
+            const tagsObj = parseTags(node.tags);
+            const tagsString = Object.entries(tagsObj)
+                .map(([k, v]) => `${k.replace(/[, =]/g, '\\$&')}=${v.replace(/[, =]/g, '\\$&')}`)
+                .join(',');
+            const valueString = typeof formattedValue === 'string' ? `"${formattedValue}"` : formattedValue;
+            const line = `${escapedMeasurementName}${tagsString ? ',' + tagsString : ''} value=${valueString} ${timestamp}`;
+
+            // Set initial status
+            setNodeStatus('green', 'configuration received');
 
             // Handle storage type
             if (node.storageType === 'memory') {
                 const contextKey = `history_data_${node.historyConfig.name}`;
-                let bucketData = node.context().flow.get(contextKey) || [];
+                let bucketData = node.context().global.get(contextKey) || [];
                 bucketData.push(line);
 
                 const maxMemoryBytes = (node.historyConfig.maxMemoryMb || 10) * 1024 * 1024;
@@ -56,19 +113,45 @@ module.exports = function(RED) {
                     totalSize = Buffer.byteLength(JSON.stringify(bucketData), 'utf8');
                 }
 
-                node.context().flow.set(contextKey, bucketData);
+                node.context().global.set(contextKey, bucketData);
+                setNodeStatus('blue', `stored: ${valueString}`);
             } else if (node.storageType === 'lineProtocol') {
+                msg.measurement = escapedMeasurementName;
                 msg.payload = line;
-                msg.table = escapedMeasurementName;
                 node.send(msg);
+                setNodeStatus('blue', `sent: ${valueString}`);
             } else if (node.storageType === 'object') {
+                msg.measurement = escapedMeasurementName;
                 msg.payload = {
-                    table: escapedMeasurementName,
-                    tags: [`seriesName=${node.seriesName}`],
-                    value: parseFloat(formattedValue),
+                    measurement: escapedMeasurementName,
+                    tags: Object.entries(tagsObj).map(([k, v]) => `${k}=${v}`),
+                    value: formattedValue,
                     timestamp: timestamp
                 };
                 node.send(msg);
+                setNodeStatus('blue', `sent: ${valueString}`);
+            } else if (node.storageType === 'objectArray') {
+                msg.measurement = escapedMeasurementName;
+                msg.timestamp = timestamp;
+                msg.payload = [
+                    { 
+                        value: formattedValue 
+                    },
+                    tagsObj
+                ]
+                node.send(msg);
+                setNodeStatus('blue', `sent: ${valueString}`);
+            } else if (node.storageType === 'batchObject') {
+                msg.payload = {
+                    measurement: escapedMeasurementName,
+                    timestamp: timestamp,
+                    fields: { 
+                        value: formattedValue 
+                    },
+                    tags: tagsObj
+                }
+                node.send(msg);
+                setNodeStatus('blue', `sent: ${valueString}`);
             }
         });
     }

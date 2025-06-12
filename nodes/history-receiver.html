@@ -4,20 +4,33 @@
         <input type="text" id="node-input-name">
     </div>
     <div class="form-row">
-        <label for="node-input-historyConfig"><i class="fa fa-book"></i> History Config</label>
+        <label for="node-input-historyConfig" title="Select the history configuration node"><i class="fa fa-book"></i> History Config</label>
         <input type="text" id="node-input-historyConfig" style="width:70%;">
     </div>
     <div class="form-row">
-        <label for="node-input-seriesName"><i class="fa fa-list"></i> Series</label>
+        <label for="node-input-seriesName" title="Specify the measurement series name"><i class="fa fa-list"></i> Series</label>
         <input type="text" id="node-input-seriesName" style="width:70%;">
     </div>
     <div class="form-row">
-        <label for="node-input-storageType"><i class="fa fa-database"></i> Storage Type</label>
+        <label for="node-input-tags" title="Enter tags as key=value pairs or comma-separated values"><i class="fa fa-tags"></i> Tags</label>
+        <input type="text" id="node-input-tags" style="width:70%;">
+    </div>
+    <div class="form-row">
+        <label for="node-input-storageType" title="Choose the storage output format"><i class="fa fa-database"></i> Storage Type</label>
         <select id="node-input-storageType">
             <option value="memory">Memory (Flow Context)</option>
             <option value="lineProtocol">Line Protocol</option>
             <option value="object">Object</option>
+            <option value="objectArray">ObjectArray (InfluxDB v2)</option>
+            <option value="batchObject">BatchObject (InfluxDB v2 Batch)</option>
         </select>
+    </div>
+
+    <div class="form-row node-changed-values" style="display: none;" id="node-changed-values">
+        <label><i class="fa fa-info-circle"></i> Changed Values</label>
+        <div style="margin-left: 10px;">
+            <p>Tags: <span id="node-changed-tags"></span></p>
+        </div>
     </div>
 </script>
 
@@ -27,7 +40,8 @@
         color: '#a6bbcf',
         defaults: {
             historyConfig: { value: "", type: "history-config", required: true },
-            seriesName: { value: "" },
+            seriesName: { value: "", required: true },
+            tags: { value: "" },
             storageType: { value: "memory" },
             name: { value: "" }
         },
@@ -41,12 +55,15 @@
             const node = this;
             const seriesInput = $("#node-input-seriesName");
             const storageType = $("#node-input-storageType");
+            const tagsInput = $("#node-input-tags");
 
             seriesInput.typedInput({
-                types: [{
-                    value: "series",
-                    options: []
-                }]
+                types: [{ value: "series", options: [] }]
+            });
+
+            tagsInput.typedInput({
+                types: ['str'],
+                default: 'str'
             });
 
             function updateSeriesOptions(configId) {
@@ -77,7 +94,9 @@
         },
         oneditsave: function() {
             const seriesInput = $("#node-input-seriesName");
+            const tagsInput = $("#node-input-tags");
             this.seriesName = seriesInput.typedInput('value');
+            this.tags = tagsInput.typedInput('value');
             this.storageType = $("#node-input-storageType").val();
         }
     });

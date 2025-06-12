@@ -16,12 +16,12 @@ module.exports = function (RED) {
                 }
                 node.log(`Using bucket: ${bucket}`);
 
-                const flowContext = node.context().flow;
-                if (!flowContext) {
-                    node.error("Flow context is not available", msg);
+                const historyContext = node.context().global;
+                if (!historyContext) {
+                    node.error("History (global) context is not available", msg);
                     return;
                 }
-                let historyData = flowContext.get(`history_data_${bucket}`) || [];
+                let historyData = historyContext.get(`history_data_${bucket}`) || [];
                 node.log(`Raw History data (${historyData.length} items): ${JSON.stringify(historyData.slice(0, 5), null, 2)}`);
 
                 let series = [];

@@ -4,12 +4,8 @@
         <input type="text" id="node-config-input-name" placeholder="History Config">
     </div>
     <div class="form-row">
-        <label for="node-config-input-maxMemoryMb"><i class="fa fa-memory"></i> Max Memory (MB)</label>
+        <label for="node-config-input-maxMemoryMb" title="This applies to memory option (Node-RED context) storage only."><i class="fa fa-memory"></i> Max Memory (MB)</label>
         <input type="number" id="node-config-input-maxMemoryMb" placeholder="10">
-    </div>
-    <div class="form-row">
-        <label><i class="fa fa-trash"></i> Clear History</label>
-        <button id="node-config-clear-history" type="button" style="margin-top: 10px; background-color: #ff4444; border-radius: 2px; color: white; border: none; padding: 8px 16px; cursor: pointer;">Clear History</button>
     </div>
     <div class="form-row">
         <label><i class="fa fa-list"></i> Series Configurations</label>
@@ -98,20 +94,6 @@
             $("#node-config-input-maxMemoryMb").val(node.maxMemoryMb || 10);
             $("#node-config-input-name").val(node.name).on("input", updateBucketName);
             updateBucketName();
-
-            // Clear history button
-            $("#node-config-clear-history").on("click", function() {
-                const bucketName = $("#node-config-bucket-name").text();
-                if (confirm(`Are you sure you want to clear all history data for bucket "${bucketName}"? This cannot be undone.`)) {
-                    RED.comms.rpc('history-config-clear-history', [node.id], function(response) {
-                        if (response && response.error) {
-                            RED.notify(`Failed to clear history: ${response.error}`, "error");
-                        } else {
-                            RED.notify(`History cleared for bucket "${bucketName}"`, "success");
-                        }
-                    });
-                }
-            });
         },
         oneditsave: function() {
             const tableBody = $("#node-config-series-table tbody");
@@ -151,18 +133,6 @@
             this.series = series;
             this.maxMemoryMb = parseFloat($("#node-config-input-maxMemoryMb").val()) || 10;
             this.name = $("#node-config-input-name").val().trim().replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
-        }
-    });
-
-    // Register an RPC method for clearing history
-    RED.httpAdmin.post('/history-config-clear-history/:id', RED.auth.needsPermission('history-config.write'), function(req, res) {
-        const node = RED.nodes.getNode(req.params.id);
-        if (node && node.type === 'history-config') {
-            node.emit('clearHistory', function() {
-                res.json({ message: "History cleared" });
-            });
-        } else {
-            res.status(404).json({ error: "Node not found" });
         }
     });
 </script>
