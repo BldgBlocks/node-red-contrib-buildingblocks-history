@@ -1,0 +1,66 @@
+<script type="text/html" data-template-name="influx-to-echart-parse">
+    <div class="form-row">
+        <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
+        <input type="text" id="node-input-name" placeholder="Name">
+    </div>
+    <div class="form-row">
+        <label for="node-input-historyConfig"><i class="fa fa-book"></i> History Config</label>
+        <select id="node-input-historyConfig" style="width: 70%;">
+            <option value="">Select a history config</option>
+        </select>
+    </div>
+</script>
+
+<script type="text/javascript">
+    RED.nodes.registerType('influx-to-echart-parse', {
+        category: 'control',
+        color: '#a6bbcf',
+        defaults: {
+            historyConfig: { value: "", type: "history-config", required: true },
+            name: { value: "" }
+        },
+        inputs: 1,
+        outputs: 1,
+        icon: "", // Ensure parse.png exists or set a default icon
+        paletteLabel: "influx to echart parse",
+        label: function() {
+            return this.name || "influx to echart parse";
+        },
+        oneditprepare: function() {
+            // Populate select with history-config nodes
+            const configSelect = $("#node-input-historyConfig");
+            RED.nodes.eachConfig(function(configNode) {
+                if (configNode.type === "history-config") {
+                    const option = $("<option></option>")
+                        .val(configNode.id)
+                        .text(configNode.name || configNode.id);
+                    if (configNode.id === this.historyConfig) {
+                        option.prop("selected", true);
+                    }
+                    configSelect.append(option);
+                }
+            }, this);
+        },
+        oneditsave: function() {
+            // Ensure selected value is saved
+            this.historyConfig = $("#node-input-historyConfig").val();
+        }
+    });
+</script>
+
+<script type="text/markdown" data-help-name="influx-to-echart-parse">
+Parses InfluxDB data into an ECharts configuration object.
+
+### Inputs
+- **msg.payload**: Array of InfluxDB data (line protocol or JSON).
+
+### Outputs
+- **msg.payload**: ECharts configuration object with title, axes, series, etc.
+
+### Details
+Uses `history-config` node for series metadata. Supports numerical and boolean series with dynamic y-axes based on data. Outputs configuration for `node-red-contrib-echarts`.
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)
+- [ECharts Documentation](https://echarts.apache.org/en/index.html)
+</script>

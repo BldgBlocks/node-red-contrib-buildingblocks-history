@@ -101,3 +101,131 @@
         }
     });
 </script>
+
+<script type="text/markdown" data-help-name="history-receiver">
+Receives data points to be tagged and bundled for storage in various formats, preparing them for a history collector or custom storage solution.
+
+### Inputs
+- payload (any): The data point to store (number, boolean, or string). Numbers are validated to exclude `NaN`, strings ending in `i` are parsed as integers (e.g., `123i` → `123`), and invalid values are rejected with a warning.
+
+### Outputs
+- payload (string | object | array): The formatted data package, depending on the selected `storageType`. See **Data Package Formats** for details.
+- measurement (string): The measurement name (e.g., `Return_Temp`), set for `lineProtocol`, `object`, and `objectArray` formats.
+- timestamp (number): Nanosecond timestamp, set for `objectArray` format.
+
+### Details
+The `history-receiver` node is the entry point for collecting and formatting time-series data before storage. It validates the input payload, applies tags, and formats the output based on the configured `storageType`. The node supports integration with InfluxDB v2 (via `node-red-contrib-influxdb`) and other storage systems.
+
+### Configuration
+- History Config: Links to a `history-config` node defining the bucket or storage context.
+- Series: The measurement name (e.g., `Return_Temp`) for the data series.
+- Tags: Comma-separated key-value pairs (e.g., `tag0=physical,location=attic`) or single values (e.g., `physical,attic`). Automatically includes `historyGroup` with the `history-config` name.
+- Storage Type: Determines the output format (see below).
+
+### Data Package Formats
+The node supports five `storageType` options, each producing a unique output format for `msg.payload` and related fields:
+
+1. **Memory (Flow Context)**:
+   - Description: Stores data in Node-RED’s global context (`history_data_${historyConfig.name}`) as an array of InfluxDB line protocol strings. No message is sent to the output.
+   - Structure: Line protocol strings, e.g., `Return_Temp,historyGroup=ConfigName,tag0=physical value=74.096 1749782400000000000`.
+   - Fields: None (no output `msg`).
+   - Use Case: Temporary in-memory storage for later processing by a `history-collector` or custom logic.
+   - InfluxDB v2 Compatibility: Requires conversion to line protocol or batch format for writing.
+   - Example: Data is appended to a global array, limited by `maxMemoryMb` (default 10 MB).
+
+2. **Line Protocol**:
+   - Description: Outputs an InfluxDB line protocol string, suitable for direct writing to InfluxDB v1.x or v2.
+   - Structure:
+     ```javascript
+     msg = {
+         measurement: "Return_Temp",
+         payload: "Return_Temp,historyGroup=ConfigName,tag0=physical value=74.096 1749782400000000000"
+     }
+     ```
+   - Fields:
+     - `msg.measurement`: Escaped measurement name.
+     - `msg.payload`: Line protocol string with measurement, tags, `value`, and nanosecond timestamp.
+   - Use Case: Direct write to InfluxDB using `influxdb out` node in line protocol mode.
+   - InfluxDB v2 Compatibility: Works with `influxdb out` (v1.x mode), but less efficient for v2 batch writes.
+   - Example: `msg.payload` is ready for an `influxdb out` node to write a single point.
+
+3. **Object**:
+   - Description: Outputs a structured object with measurement, tags, value, and timestamp, ideal for custom processing.
+   - Structure:
+     ```javascript
+     msg = {
+         measurement: "Return_Temp",
+         payload: {
+             measurement: "Return_Temp",
+             tags: ["historyGroup=ConfigName", "tag0=physical"],
+             value: 74.096,
+             timestamp: 1749782400000000000
+         }
+     }
+     ```
+   - Fields:
+     - `msg.measurement`: Escaped measurement name.
+     - `msg.payload.measurement`: Same as `msg.measurement`.
+     - `msg.payload.tags`: Array of `key=value` strings.
+     - `msg.payload.value`: Number, boolean, or string.
+     - `msg.payload.timestamp`: Nanosecond timestamp.
+   - Use Case: Custom storage or processing (e.g., JSON-based databases, MQTT).
+   - InfluxDB v2 Compatibility: Requires transformation to line protocol or batch format.
+   - Example: Useful for logging or non-InfluxDB storage systems.
+
+4. **ObjectArray (InfluxDB v2)**:
+   - Description: Outputs an array with a value object and tags object, designed for InfluxDB v2 batch processing after transformation.
+   - Structure:
+     ```javascript
+     msg = {
+         measurement: "Return_Temp",
+         timestamp: 1749782400000000000,
+         payload: [
+             { value: 74.096 },
+             { historyGroup: "ConfigName", tag0: "physical" }
+         ]
+     }
+     ```
+   - Fields:
+     - `msg.measurement`: Escaped measurement name.
+     - `msg.timestamp`: Nanosecond timestamp.
+     - `msg.payload[0]`: Object with `value` (number, boolean, or string).
+     - `msg.payload[1]`: Object with tag key-value pairs.
+   - Use Case: Prepares data for InfluxDB v2 batch writes via `influxdb batch` node after a function node converts to `[{ measurement, fields, tags, timestamp }]`.
+   - InfluxDB v2 Compatibility: Common in your flow, needs transformation for `influxdb batch`.
+   - Example: Matches your flow’s input format for batching (e.g., `Return_Temp`).
+
+5. **BatchObject (InfluxDB v2 Batch)**:
+   - Description: Outputs an object formatted for direct use with `node-red-contrib-influxdb`’s `influxdb batch` node for InfluxDB v2.
+   - Structure:
+     ```javascript
+     msg = {
+         payload: {
+             measurement: "Return_Temp",
+             timestamp: 1749782400000000000,
+             fields: { value: 74.096 },
+             tags: { historyGroup: "ConfigName", tag0: "physical" }
+         }
+     }
+     ```
+   - Fields:
+     - `msg.payload.measurement`: Escaped measurement name.
+     - `msg.payload.timestamp`: Nanosecond timestamp.
+     - `msg.payload.fields`: Object with `value` (number, boolean, or string).
+     - `msg.payload.tags`: Object with tag key-value pairs.
+   - Use Case: Direct input to `influxdb batch` node for efficient batch writes to InfluxDB v2.
+   - InfluxDB v2 Compatibility: Ideal for your setup, matches `influxdb batch` requirements.
+   - Example: Streamlines batch writes for measurements like `Stats_Compressor_PPH`.
+
+### Notes
+- Validation: The node validates `payload` to ensure it’s a number (excluding `NaN`), boolean, or string. Strings ending in `i` are parsed as integers.
+- Tags: Tags are parsed from the `Tags` field as key-value pairs (e.g., `key=value`) or indexed tags (e.g., `tag0=physical`). "historyGroup":<node.historyConfig.name> is always included in tags. Special characters are escaped.
+- Timestamp: Generated as nanoseconds (ms * 1e6) for InfluxDB v2 precision.
+- Error Handling: Invalid configurations or payloads trigger warnings and status updates (red ring).
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)
+- [GitHub Repository](https://github.com/BldgBlocks/node-red-contrib-buildingblocks-control)
+- [InfluxDB Line Protocol](https://docs.influxdata.com/influxdb/v2.0/reference/syntax/line-protocol/)
+- [node-red-contrib-influxdb](https://flows.nodered.org/node/node-red-contrib-influxdb)
+</script>

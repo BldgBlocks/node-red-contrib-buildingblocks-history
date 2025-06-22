@@ -7,14 +7,12 @@ module.exports = function (RED) {
 
         node.on("input", function (msg) {
             try {
-                node.log(`Input msg.bucket: ${msg.bucket}, msg.series: ${msg.series}`);
 
                 let bucket = msg.bucket || (node.historyConfig && node.historyConfig.name) || node.bucket;
                 if (!bucket || bucket === "Undefined") {
                     node.error(`No valid bucket specified. msg.bucket: ${msg.bucket}, historyConfig.name: ${node.historyConfig && node.historyConfig.name}, config.bucket: ${node.bucket}`, msg);
                     return;
                 }
-                node.log(`Using bucket: ${bucket}`);
 
                 const historyContext = node.context().global;
                 if (!historyContext) {
@@ -22,7 +20,6 @@ module.exports = function (RED) {
                     return;
                 }
                 let historyData = historyContext.get(`history_data_${bucket}`) || [];
-                node.log(`Raw History data (${historyData.length} items): ${JSON.stringify(historyData.slice(0, 5), null, 2)}`);
 
                 let series = [];
                 if (msg.series) {
@@ -31,7 +28,6 @@ module.exports = function (RED) {
                         : typeof msg.series === "string"
                         ? msg.series.split(",").map(s => s.trim())
                         : [];
-                    node.log(`Using msg.series: ${series}`);
                 }
 
                 let outputData = historyData;
@@ -83,8 +79,6 @@ module.exports = function (RED) {
                             return null;
                         }
                     }).filter(item => item && item.seriesName && series.includes(item.seriesName));
-
-                    node.log(`Filtered parsed data (${outputData.length} items): ${JSON.stringify(outputData.slice(0, 5), null, 2)}`);
                 }
 
                 msg.payload = outputData;

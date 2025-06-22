@@ -1,7 +1,7 @@
 {
   "name": "node-red-contrib-buildingblocks-history",
   "version": "0.0.1",
-  "description": "Sedona-inspired history nodes for Node-RED",
+  "description": "History nodes for Node-RED",
   "keywords": [ "sedona", "history", "hvac" ],
   "files": ["nodes/*.js", "nodes/*.html"],
   "node-red": {
@@ -9,7 +9,8 @@
         "chart-config": "nodes/history-config.js",
         "chart-data-receiver": "nodes/history-receiver.js",
         "history-template": "nodes/history-template.js",
-        "chart-data-query": "nodes/history-query.js"
+        "chart-data-query": "nodes/history-query.js",
+        "influxdb-to-echart-parse": "nodes/influx-to-echart-parse.js"
       }
   },
   "author": "buildingblocks",

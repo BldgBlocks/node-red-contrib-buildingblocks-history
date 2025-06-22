@@ -30,3 +30,22 @@
     },
   });
 </script>
+
+<script type="text/markdown" data-help-name="history-query">
+Query the context storage for history data.
+
+### Inputs
+: bucket (string) : Specify the history grouping.  
+: series (string) : Specify the series name.
+
+### Outputs
+: payload (string) : An array of strings in line protocol.
+
+### Details
+History is collected by the history-receiver node and, if set to store in context (default), this query node
+will retreive and format the data in a format that the history-template can use to build a chart.
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)  
+- [GitHub Repository](https://github.com/BldgBlocks/node-red-contrib-buildingblocks-control.git)
+</script>

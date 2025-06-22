@@ -18,6 +18,8 @@
                         <th>Units</th>
                         <th>X Type</th>
                         <th>Y Type</th>
+                        <th>Digital</th>
+                        <th>Area Style</th>
                         <th></th>
                     </tr>
                 </thead>
@@ -72,6 +74,8 @@
                                 <option value="log" ${data.seriesYtype === 'log' ? 'selected' : ''}>Log</option>
                             </select>
                         </td>
+                        <td><input type="checkbox" class="node-config-series-isdigital" ${data.isDigital ? 'checked' : ''} style="width: 100%;"></td>
+                        <td><input type="checkbox" class="node-config-series-useareastyle" ${data.useAreaStyle !== false ? 'checked' : ''} style="width: 100%;"></td>
                         <td><button class="node-config-remove-row" style="color: white; background-color: red; border-radius: 2px; border: none; padding: 2px 8px; cursor: pointer;">Remove</button></td>
                     </tr>
                 `);
@@ -119,7 +123,9 @@
                     seriesColor: $(this).find(".node-config-series-color").val(),
                     seriesUnits: $(this).find(".node-config-series-units").val(),
                     seriesXtype: $(this).find(".node-config-series-xtype").val(),
-                    seriesYtype: $(this).find(".node-config-series-ytype").val()
+                    seriesYtype: $(this).find(".node-config-series-ytype").val(),
+                    isDigital: $(this).find(".node-config-series-isdigital").is(":checked"),
+                    useAreaStyle: $(this).find(".node-config-series-useareastyle").is(":checked")
                 });
             });
 
@@ -135,4 +141,12 @@
             this.name = $("#node-config-input-name").val().trim().replace(/[^a-zA-Z0-9_]/g, '_') || 'default';
         }
     });
+</script>
+
+<script type="text/markdown" data-help-name="history-config">
+Store configuration for history series selections.
+
+### References
+- [Node-RED Documentation](https://nodered.org/docs/)  
+- [GitHub Repository](https://github.com/BldgBlocks/node-red-contrib-buildingblocks-control.git)
 </script>
