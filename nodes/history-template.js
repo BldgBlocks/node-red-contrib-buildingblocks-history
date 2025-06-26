@@ -40,9 +40,9 @@ module.exports = function(RED) {
                         continue;
                     }
 
-                    // Snap digital signal values to 0 or 80
+                    // Snap digital signal values to 0 or 50
                     const seriesConfig = node.historyConfig.series.find(s => s.seriesName === seriesName) || {};
-                    const finalValue = seriesConfig.isDigital ? (value > 0 ? 80 : 0) : value;
+                    const finalValue = seriesConfig.isDigital ? (value > 0 ? 50 : 0) : value;
 
                     if (!historyData[seriesName]) {
                         historyData[seriesName] = [];
@@ -261,9 +261,9 @@ module.exports = function(RED) {
         yAxis: { type: 'value', name: yAxisName, min: paddedMin, max: paddedMax },
         toolbox: { feature: { dataZoom: { yAxisIndex: 'none' }, restore: {}, saveAsImage: {} } },
         dataZoom: [
-          { type: 'slider', xAxisIndex: 0, filterMode: 'filter' },
-          { type: 'inside', xAxisIndex: 0, filterMode: 'filter' },
-          { type: 'inside', yAxisIndex: 0, filterMode: 'filter', minValueSpan: paddedMin - 10, maxValueSpan: paddedMax + 10 }
+          { type: 'slider', xAxisIndex: 0, filterMode: 'none' },
+          { type: 'inside', xAxisIndex: 0, filterMode: 'none' },
+          { type: 'inside', yAxisIndex: 0, filterMode: 'none', minValueSpan: paddedMin - 10, maxValueSpan: paddedMax + 10 }
         ],
         series: seriesData
       });
