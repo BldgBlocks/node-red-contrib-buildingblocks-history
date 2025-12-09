@@ -5,15 +5,23 @@
     </div>
     <div class="form-row">
         <label for="node-input-historyConfig" title="Select the history configuration node"><i class="fa fa-book"></i> History Config</label>
-        <input type="text" id="node-input-historyConfig" style="width:70%;">
+        <input type="text" id="node-input-historyConfig">
     </div>
     <div class="form-row">
         <label for="node-input-seriesName" title="Specify the measurement series name"><i class="fa fa-list"></i> Series</label>
-        <input type="text" id="node-input-seriesName" style="width:70%;">
+        <input type="text" id="node-input-seriesName">
     </div>
     <div class="form-row">
-        <label for="node-input-tags" title="Enter tags as key=value pairs or comma-separated values"><i class="fa fa-tags"></i> Tags</label>
-        <input type="text" id="node-input-tags" style="width:70%;">
+        <label for="node-input-tags"><i class="fa fa-tags"></i> Tags</label>
+        <input type="hidden" id="node-input-tags">
+        
+        <!-- Visible Container for Checkboxes -->
+        <div id="node-input-tag-container-div" style="display: inline-block; width: 70%; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            <!-- Header for 'Select All' or filtering could go here -->
+            <div id="node-input-tag-container" style="height: 150px; overflow-y: scroll; padding: 5px; background: #00000000;">
+                <div style="color: #00000000; padding: 5px;">Select a History Config...</div>
+            </div>
+        </div>
     </div>
     <div class="form-row">
         <label for="node-input-storageType" title="Choose the storage output format"><i class="fa fa-database"></i> Storage Type</label>
@@ -56,49 +64,92 @@
             const node = this;
             const seriesInput = $("#node-input-seriesName");
             const storageType = $("#node-input-storageType");
-            const tagsInput = $("#node-input-tags");
+            const tagContainer = $("#node-input-tag-container");
+            const hiddenTagInput = $("#node-input-tags");
 
+            // Initialize empty typedInputs first
             seriesInput.typedInput({
                 types: [{ value: "series", options: [] }]
             });
 
-            tagsInput.typedInput({
-                types: ['str'],
-                default: 'str'
-            });
-
-            function updateSeriesOptions(configId) {
+            function updateConfigOptions(configId) {
                 const configNode = RED.nodes.node(configId);
-                const options = configNode && configNode.series ?
+                
+                // 1. Update Series Dropdown
+                const seriesOptions = configNode && configNode.series ?
                     configNode.series.map(s => ({ value: s.seriesName, label: s.seriesName })) :
                     [];
+                
                 seriesInput.typedInput('types', [{
                     value: "series",
-                    options: options
+                    options: seriesOptions
                 }]);
-                if (node.seriesName && options.find(o => o.value === node.seriesName)) {
+                
+                if (node.seriesName && seriesOptions.find(o => o.value === node.seriesName)) {
                     seriesInput.typedInput('value', node.seriesName);
                 } else {
                     seriesInput.typedInput('value', '');
                 }
+
+                // 2. Update Tags Multi-Select List
+                tagContainer.empty();
+                
+                if (!configNode || !configNode.tags || configNode.tags.length === 0) {
+                    tagContainer.append('<div style="color: #999; padding: 5px;">No tags defined in config</div>');
+                    return;
+                }
+
+                // Parse currently selected tags (CSV string -> Array)
+                const currentTags = (hiddenTagInput.val() || "").split(',').map(t => t.trim()).filter(t => t);
+                const currentTagSet = new Set(currentTags);
+
+                for (let i = 0; i < configNode.tags.length; i++) {
+                    const t = configNode.tags[i];
+                    
+                    const tagKey = "tag" + i;
+                    const tagString = tagKey + (t.tagValue ? '=' + t.tagValue : '');
+                    
+                    const isChecked = currentTagSet.has(tagString);
+
+                    const row = $('<div style="padding: 2px 0;"></div>').appendTo(tagContainer);
+                    const label = $('<label style="width: 100%; display: flex; align-items: center; margin: 0; cursor: pointer;"></label>').appendTo(row);
+                    
+                    const checkbox = $('<input type="checkbox" style="width: auto; margin: 0 6px 0 0; vertical-align: middle;">')
+                        .attr('value', tagString)
+                        .prop('checked', isChecked)
+                        .on('change', function() {
+                            updateHiddenTagInput();
+                        })
+                        .appendTo(label);
+                    
+                    $('<span>').text(tagString).appendTo(label);
+                }
+            }
+
+            // Function to gather checked boxes and update hidden input
+            function updateHiddenTagInput() {
+                const selected = [];
+                tagContainer.find('input[type="checkbox"]:checked').each(function() {
+                    selected.push($(this).val());
+                });
+                hiddenTagInput.val(selected.join(','));
             }
 
             $("#node-input-historyConfig").on("change", function() {
-                updateSeriesOptions($(this).val());
+                updateConfigOptions($(this).val());
             });
 
             if (node.historyConfig) {
-                updateSeriesOptions(node.historyConfig);
+                updateConfigOptions(node.historyConfig);
             }
 
             storageType.val(node.storageType || 'memory');
         },
         oneditsave: function() {
             const seriesInput = $("#node-input-seriesName");
-            const tagsInput = $("#node-input-tags");
             this.seriesName = seriesInput.typedInput('value');
-            this.tags = tagsInput.typedInput('value');
             this.storageType = $("#node-input-storageType").val();
+            // tags are already in the hidden input thanks to the checkbox change handler
         }
     });
 </script>
@@ -132,7 +183,7 @@ The node supports five `storageType` options, each producing a unique output for
    - Fields: None (no output `msg`).
    - Use Case: Temporary in-memory storage for later processing by a `history-collector` or custom logic.
    - InfluxDB v2 Compatibility: Requires conversion to line protocol or batch format for writing.
-   - Example: Data is appended to a global array, limited by `maxMemoryMb` (default 10 MB).
+   - Example: Data is appended to a global array.
 
 2. **Line Protocol**:
    - Description: Outputs an InfluxDB line protocol string, suitable for direct writing to InfluxDB v1.x or v2.

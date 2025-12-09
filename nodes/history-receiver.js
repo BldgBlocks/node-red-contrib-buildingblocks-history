@@ -154,6 +154,10 @@ module.exports = function(RED) {
                 setNodeStatus('blue', `sent: ${valueString}`);
             }
         });
+
+        node.on("close", function(done) {
+            done();
+        });
     }
     RED.nodes.registerType("history-receiver", HistoryReceiverNode);
 };

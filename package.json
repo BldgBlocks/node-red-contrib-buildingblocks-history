@@ -5,12 +5,9 @@
   "keywords": [ "sedona", "history", "hvac" ],
   "files": ["nodes/*.js", "nodes/*.html"],
   "node-red": {
-      "nodes": {        
+      "nodes": {
         "history-config": "nodes/history-config.js",
-        "history-receiver": "nodes/history-receiver.js",
-        "history-template": "nodes/history-template.js",
-        "chart-data-query": "nodes/history-query.js",
-        "influxdb-to-echart-parse": "nodes/influx-to-echart-parse.js"
+        "history-receiver": "nodes/history-receiver.js"
       }
   },
   "author": "buildingblocks",
