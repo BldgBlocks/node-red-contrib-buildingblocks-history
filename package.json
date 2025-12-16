@@ -4,14 +4,19 @@
   "description": "History nodes for Node-RED",
   "keywords": [ "sedona", "history", "hvac" ],
   "files": ["nodes/*.js", "nodes/*.html"],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "node-red": {
+      "version": ">=4.0.0",
       "nodes": {
         "history-config": "nodes/history-config.js",
         "history-receiver": "nodes/history-receiver.js"
       }
   },
   "author": "buildingblocks",
-  "license": "MIT",  
+  "license": "Apache-2.0",  
   "repository": {
     "type": "git",
     "url": "git+https://github.com/BldgBlocks/node-red-contrib-buildingblocks-history.git"
