@@ -1,24 +1,11 @@
 module.exports = function(RED) {
-    function HistoryReceiverNode(config) {
+    function HistoryCollectorNode(config) {
         RED.nodes.createNode(this, config);
         this.historyConfig = RED.nodes.getNode(config.historyConfig);
         this.seriesName = config.seriesName;
         this.storageType = config.storageType || 'memory';
         this.tags = config.tags || '';
         const node = this;
-
-        // Status update helper
-        function setNodeStatus(status, message, payloadChanged = true) {
-            let fill, shape;
-            switch (status) {
-                case 'green': fill = 'green'; shape = 'dot'; break;
-                case 'blue': fill = 'blue'; shape = payloadChanged ? 'dot' : 'ring'; break;
-                case 'red': fill = 'red'; shape = 'ring'; break;
-                case 'yellow': fill = 'yellow'; shape = 'ring'; break;
-                default: fill = 'grey'; shape = 'dot';
-            }
-            node.status({ fill, shape, text: message });
-        }
 
         // Parse tags into key-value object
         function parseTags(tagsString) {
@@ -40,24 +27,24 @@ module.exports = function(RED) {
         node.on('input', function(msg) {
             // Guard against invalid message
             if (!msg) {
-                setNodeStatus('red', 'invalid message', false);
+                node.status({ fill: "red", shape: "ring", text: "invalid message" });
                 node.error('Invalid message received');
                 return;
             }
 
             // Validate configuration
             if (!node.historyConfig) {
-                setNodeStatus('red', 'missing history config', false);
+                node.status({ fill: "red", shape: "ring", text: "missing history config" });
                 node.error('Missing history configuration', msg);
                 return;
             }
             if (!node.seriesName) {
-                setNodeStatus('red', 'missing series name', false);
+                node.status({ fill: "red", shape: "ring", text: "missing series name" });
                 node.error('Missing series name', msg);
                 return;
             }
             if (!node.historyConfig.name) {
-                setNodeStatus('red', 'missing bucket name', false);
+                node.status({ fill: "red", shape: "ring", text: "missing bucket name" });
                 node.error('Missing bucket name in history configuration', msg);
                 return;
             }
@@ -75,13 +62,13 @@ module.exports = function(RED) {
                     formattedValue = parseInt(payloadValue); // Handle InfluxDB integer format
                 }
             } else {
-                setNodeStatus('red', 'invalid payload', false);
+                node.status({ fill: "red", shape: "ring", text: "invalid payload" });
                 node.warn(`Invalid payload type: ${typeof payloadValue}`);
                 return;
             }
 
             if (formattedValue === null) {
-                setNodeStatus('red', 'invalid payload', false);
+                node.status({ fill: "red", shape: "ring", text: "invalid payload" });
                 node.warn(`Invalid payload value: ${msg.payload}`);
                 return;
             }
@@ -98,7 +85,7 @@ module.exports = function(RED) {
             const line = `${escapedMeasurementName}${tagsString ? ',' + tagsString : ''} value=${valueString} ${timestamp}`;
 
             // Set initial status
-            setNodeStatus('green', 'configuration received');
+            node.status({ fill: "green", shape: "dot", text: "configuration received" });
 
             // Handle storage type
             if (node.storageType === 'memory') {
@@ -114,12 +101,12 @@ module.exports = function(RED) {
                 }
 
                 node.context().global.set(contextKey, bucketData);
-                setNodeStatus('blue', `stored: ${valueString}`);
+                node.status({ fill: "blue", shape: "dot", text: `stored: ${valueString}` });
             } else if (node.storageType === 'lineProtocol') {
                 msg.measurement = escapedMeasurementName;
                 msg.payload = line;
                 node.send(msg);
-                setNodeStatus('blue', `sent: ${valueString}`);
+                node.status({ fill: "blue", shape: "dot", text: `sent: ${valueString}` });
             } else if (node.storageType === 'object') {
                 msg.measurement = escapedMeasurementName;
                 msg.payload = {
@@ -129,7 +116,7 @@ module.exports = function(RED) {
                     timestamp: timestamp
                 };
                 node.send(msg);
-                setNodeStatus('blue', `sent: ${valueString}`);
+                node.status({ fill: "blue", shape: "dot", text: `sent: ${valueString}` });
             } else if (node.storageType === 'objectArray') {
                 msg.measurement = escapedMeasurementName;
                 msg.timestamp = timestamp;
@@ -140,7 +127,7 @@ module.exports = function(RED) {
                     tagsObj
                 ]
                 node.send(msg);
-                setNodeStatus('blue', `sent: ${valueString}`);
+                node.status({ fill: "blue", shape: "dot", text: `sent: ${valueString}` });
             } else if (node.storageType === 'batchObject') {
                 msg.payload = {
                     measurement: escapedMeasurementName,
@@ -151,7 +138,7 @@ module.exports = function(RED) {
                     tags: tagsObj
                 }
                 node.send(msg);
-                setNodeStatus('blue', `sent: ${valueString}`);
+                node.status({ fill: "blue", shape: "dot", text: `sent: ${valueString}` });
             }
         });
 
@@ -159,5 +146,5 @@ module.exports = function(RED) {
             done();
         });
     }
-    RED.nodes.registerType("history-receiver", HistoryReceiverNode);
+    RED.nodes.registerType("history-collector", HistoryCollectorNode);
 };

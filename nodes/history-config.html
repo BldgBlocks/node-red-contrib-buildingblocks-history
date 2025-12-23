@@ -109,7 +109,7 @@
                 
                 row.find(".node-config-remove-tag").on("click", () => {
                     row.remove();
-                    renumberTags(); // Re-calculate tag0, tag1, etc on delete
+                    renumberTags();
                 });
                 
                 renumberTags(); // Ensure specific ordering
@@ -118,8 +118,7 @@
             // Initialize tags table
             (node.tags || []).forEach(addTagRow);
             if (node.tags.length === 0) {
-                // Defaults (tag names are auto-generated now, we just pass values)
-                addTagRow({tagValue: "stat"});
+                addTagRow({tagValue: "virtual"});
                 addTagRow({tagValue: "physical"});
                 addTagRow({tagValue: "input"});
                 addTagRow({tagValue: "output"});
@@ -162,12 +161,12 @@
                 return (str || "").toString().trim().replace(/[^a-zA-Z0-9_]/g, '_');
             }
 
+            let hasTagError = false;
             // Save Tags
             const tagsTableBody = $("#node-config-tags-table tbody");
             const tags = [];
             
             tagsTableBody.find("tr").each(function(index) {
-                // Auto-generate tag name based on row index
                 const tagName = "tag" + index; 
                 const tagValue = $(this).find(".node-config-tag-value").val().trim();
                 
@@ -233,7 +232,5 @@
 <script type="text/markdown" data-help-name="history-config">
 Store configuration for history series selections.
 
-### References
-- [Node-RED Documentation](https://nodered.org/docs/)  
-- [GitHub Repository](https://github.com/BldgBlocks/node-red-contrib-buildingblocks-control.git)
+
 </script>

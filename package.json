@@ -12,7 +12,7 @@
       "version": ">=4.0.0",
       "nodes": {
         "history-config": "nodes/history-config.js",
-        "history-receiver": "nodes/history-receiver.js"
+        "history-collector": "nodes/history-collector.js"
       }
   },
   "author": "buildingblocks",

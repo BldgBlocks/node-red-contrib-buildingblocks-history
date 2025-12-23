@@ -1,4 +1,4 @@
-<script type="text/html" data-template-name="history-receiver">
+<script type="text/html" data-template-name="history-collector">
     <div class="form-row">
         <label for="node-input-name"><i class="fa fa-tag"></i> Name</label>
         <input type="text" id="node-input-name">
@@ -43,22 +43,22 @@
 </script>
 
 <script type="text/javascript">
-    RED.nodes.registerType('history-receiver', {
-        category: 'bldgblocks/history',
-        color: '#a6bbcf',
+    RED.nodes.registerType('history-collector', {
+        category: 'bldgblocks history',
+        color: '#b9f2ff',
         defaults: {
             historyConfig: { value: "", type: "history-config", required: true },
             seriesName: { value: "", required: true },
             tags: { value: "" },
-            storageType: { value: "memory" },
+            storageType: { value: "batchObject" },
             name: { value: "" }
         },
         inputs: 1,
         outputs: 1,
         icon: "file.png",
-        paletteLabel: "history receiver",
+        paletteLabel: "history collector",
         label: function() {
-            return this.name || this.seriesName || "history receiver";
+            return this.name || this.seriesName || "history collector";
         },
         oneditprepare: function() {
             const node = this;
@@ -154,7 +154,7 @@
     });
 </script>
 
-<script type="text/markdown" data-help-name="history-receiver">
+<script type="text/markdown" data-help-name="history-collector">
 Receives data points to be tagged and bundled for storage in various formats, preparing them for a history collector or custom storage solution.
 
 ### Inputs
@@ -166,7 +166,7 @@ Receives data points to be tagged and bundled for storage in various formats, pr
 - timestamp (number): Nanosecond timestamp, set for `objectArray` format.
 
 ### Details
-The `history-receiver` node is the entry point for collecting and formatting time-series data before storage. It validates the input payload, applies tags, and formats the output based on the configured `storageType`. The node supports integration with InfluxDB v2 (via `node-red-contrib-influxdb`) and other storage systems.
+The `history-collector` node is the entry point for collecting and formatting time-series data before storage. It validates the input payload, applies tags, and formats the output based on the configured `storageType`. The node supports integration with InfluxDB v2 (via `node-red-contrib-influxdb`) and other storage systems.
 
 ### Configuration
 - History Config: Links to a `history-config` node defining the bucket or storage context.
